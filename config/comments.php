@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'comment_class' => \Laravelista\Comments\Comment::class,
+    'model' => \Laravelista\Comments\Comment::class,
 
     'permissions' => [
         'create-comment' => 'Laravelista\Comments\CommentPolicy@create',
