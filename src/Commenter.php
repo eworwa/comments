@@ -13,6 +13,14 @@ trait Commenter
      */
     public function comments()
     {
-        return $this->morphMany(Comment::class, 'commenter');
+        return $this->morphMany(config('comments.model'), 'commenter');
+    }
+
+    /**
+     * Returns only approved comments that this user has made.
+     */
+    public function approvedComments()
+    {
+        return $this->morphMany(config('comments.model'), 'commenter')->where('approved', true);
     }
 }

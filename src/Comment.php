@@ -10,11 +10,27 @@ use Laravelista\Comments\Events\CommentDeleted;
 class Comment extends Model
 {
     /**
+     * The relations to eager load on every query.
+     *
+     * @var array
+     */
+    protected $with = ['commenter'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['comment'];
+    protected $fillable = ['comment', 'approved', 'guest_name', 'guest_email'];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'approved' => 'boolean'
+    ];
 
     /**
      * The event map for the model.

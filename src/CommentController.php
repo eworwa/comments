@@ -7,13 +7,19 @@ use Illuminate\Routing\Controller;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
-class CommentsController extends Controller
+class CommentController extends Controller implements CommentControllerInterface
 {
     use ValidatesRequests, AuthorizesRequests;
 
     public function __construct()
     {
-        $this->middleware(['web', 'auth']);
+        $this->middleware('web');
+
+        if (config('comments.guest_commenting') == true) {
+            $this->middleware('auth')->except('store');
+        } else {
+            $this->middleware('auth');
+        }
     }
 
     /**
@@ -21,21 +27,41 @@ class CommentsController extends Controller
      */
     public function store(Request $request)
     {
-        $this->authorize('create-comment', Comment::class);
-        
-        $this->validate($request, [
+        // If guest commenting is turned off, authorize this action.
+        if (config('comments.guest_commenting') == false) {
+            $this->authorize('create-comment', Comment::class);
+        }
+
+        // Define guest rules if guest commenting is enabled.
+        if (config('comments.guest_commenting') == true) {
+            $guest_rules = [
+                'guest_name' => 'required|string|max:255',
+                'guest_email' => 'required|string|email|max:255',
+            ];
+        }
+
+        // Merge guest rules, if any, with normal validation rules.
+        $this->validate($request, array_merge($guest_rules ?? [], [
             'commentable_type' => 'required|string',
-            'commentable_id' => 'required|integer|min:1',
+            'commentable_id' => 'required|string|min:1',
             'message' => 'required|string'
-        ]);
+        ]));
 
         $model = $request->commentable_type::findOrFail($request->commentable_id);
 
         $commentClass = config('comments.model');
         $comment = new $commentClass;
-        $comment->commenter()->associate(auth()->user());
+
+        if (config('comments.guest_commenting') == true) {
+            $comment->guest_name = $request->guest_name;
+            $comment->guest_email = $request->guest_email;
+        } else {
+            $comment->commenter()->associate(auth()->user());
+        }
+
         $comment->commentable()->associate($model);
         $comment->comment = $request->message;
+        $comment->approved = !config('comments.approval_required');
         $comment->save();
 
         return redirect()->to(url()->previous() . '#comment-' . $comment->id);
@@ -87,6 +113,7 @@ class CommentsController extends Controller
         $reply->commentable()->associate($comment->commentable);
         $reply->parent()->associate($comment);
         $reply->comment = $request->message;
+        $reply->approved = !config('comments.approval_required');
         $reply->save();
 
         return redirect()->to(url()->previous() . '#comment-' . $reply->id);
